@@ -9,18 +9,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { CircleUser, Menu, Package2 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { CircleUser, Menu, Package2, LogOut } from "lucide-react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { navItems } from "../App";
+import { useSupabaseAuth } from "@/integrations/supabase/auth";
 
 const Layout = () => {
+  const { session } = useSupabaseAuth();
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <Sidebar />
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
           <MobileSidebar />
-          <div className="w-full flex-1">{/* Add nav bar content here! */}</div>
+          <div className="w-full flex-1 flex justify-between items-center">
+            {/* Add nav bar content here! */}
+            {session && <UserMenu />}
+          </div>
         </header>
         <main className="flex-grow p-4 overflow-auto">
           <Outlet />
@@ -80,24 +86,34 @@ const MobileSidebar = () => (
   </Sheet>
 );
 
-const UserDropdown = () => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button variant="secondary" size="icon" className="rounded-full">
-        <CircleUser className="h-5 w-5" />
-        <span className="sr-only">Toggle user menu</span>
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuLabel>My Account</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem>Settings</DropdownMenuItem>
-      <DropdownMenuItem>Support</DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem>Logout</DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-);
+const UserMenu = () => {
+  const { session, logout } = useSupabaseAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" size="icon" className="rounded-full">
+          <CircleUser className="h-5 w-5" />
+          <span className="sr-only">Toggle user menu</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>{session?.user?.email}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 const SidebarNavLink = ({ to, children }) => (
   <NavLink

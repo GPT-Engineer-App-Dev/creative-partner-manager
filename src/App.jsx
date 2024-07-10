@@ -1,12 +1,15 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Home, Users, Settings } from "lucide-react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Home, Users, Settings, LogIn } from "lucide-react";
+import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-dom";
 import Layout from "./layouts/sidebar";
 import Dashboard from "./pages/Dashboard";
 import Partners from "./pages/Partners";
 import SettingsPage from "./pages/Settings";
+import Login from "./pages/Login";
+import { useSupabaseAuth } from "./integrations/supabase/auth";
+
 const queryClient = new QueryClient();
 
 export const navItems = [
@@ -28,22 +31,41 @@ export const navItems = [
 ];
 
 const App = () => {
+  const { session } = useSupabaseAuth();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Router>
           <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="partners" element={<Partners />} />
-              <Route path="settings" element={<SettingsPage />} />
+            <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="partners" element={<Partners />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
             </Route>
           </Routes>
         </Router>
       </TooltipProvider>
     </QueryClientProvider>
   );
+};
+
+const ProtectedRoute = () => {
+  const { session, loading } = useSupabaseAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Layout />;
 };
 
 export default App;
