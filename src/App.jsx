@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Home, Users, Settings, LogIn } from "lucide-react";
+import { Home, Users, Settings } from "lucide-react";
 import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-dom";
 import Layout from "./layouts/sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -31,7 +31,11 @@ export const navItems = [
 ];
 
 const App = () => {
-  const { session } = useSupabaseAuth();
+  const { session, loading } = useSupabaseAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -41,7 +45,7 @@ const App = () => {
           <Routes>
             <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Layout />}>
+              <Route element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="partners" element={<Partners />} />
                 <Route path="settings" element={<SettingsPage />} />
