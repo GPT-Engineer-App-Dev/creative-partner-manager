@@ -1,13 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useDesignPartners, useAddDesignPartner, useUpdateDesignPartner, useDeleteDesignPartner } from "@/integrations/supabase";
 import { useForm, Controller } from "react-hook-form";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 const Partners = () => {
   const { data: partners, isLoading, isError } = useDesignPartners();
@@ -33,26 +27,23 @@ const Partners = () => {
   const updatePartner = useUpdateDesignPartner();
   const deletePartner = useDeleteDesignPartner();
 
-  const [sortColumn, setSortColumn] = useState("name");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [columns, setColumns] = useState({});
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const { control, handleSubmit, reset } = useForm();
 
-  const handleSort = (column) => {
-    if (column === sortColumn) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
+  useEffect(() => {
+    if (partners) {
+      const newColumns = partners.reduce((acc, partner) => {
+        if (!acc[partner.stage]) {
+          acc[partner.stage] = [];
+        }
+        acc[partner.stage].push(partner);
+        return acc;
+      }, {});
+      setColumns(newColumns);
     }
-  };
-
-  const sortedPartners = partners ? [...partners].sort((a, b) => {
-    if (a[sortColumn] < b[sortColumn]) return sortDirection === "asc" ? -1 : 1;
-    if (a[sortColumn] > b[sortColumn]) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  }) : [];
+  }, [partners]);
 
   const onSubmit = async (data) => {
     try {
@@ -61,13 +52,62 @@ const Partners = () => {
       reset();
     } catch (error) {
       console.error("Error adding new partner:", error);
-      // You might want to show an error message to the user here
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this partner?")) {
       await deletePartner.mutateAsync(id);
+    }
+  };
+
+  const onDragEnd = async (result) => {
+    const { source, destination, draggableId } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return;
+    }
+
+    const startColumn = columns[source.droppableId];
+    const finishColumn = columns[destination.droppableId];
+
+    if (startColumn === finishColumn) {
+      const newPartners = Array.from(startColumn);
+      const [reorderedPartner] = newPartners.splice(source.index, 1);
+      newPartners.splice(destination.index, 0, reorderedPartner);
+
+      const newColumn = {
+        ...columns,
+        [source.droppableId]: newPartners,
+      };
+
+      setColumns(newColumn);
+    } else {
+      const startPartners = Array.from(startColumn);
+      const [movedPartner] = startPartners.splice(source.index, 1);
+      const finishPartners = Array.from(finishColumn);
+      finishPartners.splice(destination.index, 0, movedPartner);
+
+      const newColumns = {
+        ...columns,
+        [source.droppableId]: startPartners,
+        [destination.droppableId]: finishPartners,
+      };
+
+      setColumns(newColumns);
+
+      // Update the partner's stage in the database
+      await updatePartner.mutateAsync({
+        id: draggableId,
+        stage: destination.droppableId,
+      });
     }
   };
 
@@ -131,39 +171,53 @@ const Partners = () => {
           </DialogContent>
         </Dialog>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead onClick={() => handleSort("name")} className="cursor-pointer">
-              Name {sortColumn === "name" && (sortDirection === "asc" ? "▲" : "▼")}
-            </TableHead>
-            <TableHead onClick={() => handleSort("email")} className="cursor-pointer">
-              Email {sortColumn === "email" && (sortDirection === "asc" ? "▲" : "▼")}
-            </TableHead>
-            <TableHead onClick={() => handleSort("stage")} className="cursor-pointer">
-              Stage {sortColumn === "stage" && (sortDirection === "asc" ? "▲" : "▼")}
-            </TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedPartners.map((partner) => (
-            <TableRow key={partner.id}>
-              <TableCell>{partner.name}</TableCell>
-              <TableCell>{partner.email}</TableCell>
-              <TableCell>{partner.stage}</TableCell>
-              <TableCell>
-                <Button variant="outline" size="sm" className="mr-2">
-                  Edit
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(partner.id)}>
-                  Delete
-                </Button>
-              </TableCell>
-            </TableRow>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Object.entries(columns).map(([columnId, columnPartners]) => (
+            <div key={columnId} className="bg-gray-100 p-4 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">{columnId}</h2>
+              <Droppable droppableId={columnId}>
+                {(provided) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="space-y-4"
+                  >
+                    {columnPartners.map((partner, index) => (
+                      <Draggable key={partner.id} draggableId={partner.id.toString()} index={index}>
+                        {(provided) => (
+                          <Card
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className="bg-white"
+                          >
+                            <CardHeader>
+                              <CardTitle>{partner.name}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p>{partner.email}</p>
+                              <div className="mt-2 flex justify-end space-x-2">
+                                <Button variant="outline" size="sm">
+                                  Edit
+                                </Button>
+                                <Button variant="destructive" size="sm" onClick={() => handleDelete(partner.id)}>
+                                  Delete
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
           ))}
-        </TableBody>
-      </Table>
+        </div>
+      </DragDropContext>
     </div>
   );
 };
