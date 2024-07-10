@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Home, Users, Settings } from "lucide-react";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { DragDropContext } from "react-beautiful-dnd";
 import Layout from "./layouts/sidebar";
 import Dashboard from "./pages/Dashboard";
 import Partners from "./pages/Partners";
@@ -33,13 +34,15 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Router>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="partners" element={<Partners />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
-          </Routes>
+          <DragDropContext>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="partners" element={<Partners />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
+            </Routes>
+          </DragDropContext>
         </Router>
       </TooltipProvider>
     </QueryClientProvider>
