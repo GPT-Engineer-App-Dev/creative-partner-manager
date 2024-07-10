@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDesignPartners, useAddDesignPartner, useUpdateDesignPartner, useDeleteDesignPartner } from "@/integrations/supabase";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 
 const Partners = () => {
   const { data: partners, isLoading, isError } = useDesignPartners();
@@ -37,7 +37,7 @@ const Partners = () => {
   const [sortDirection, setSortDirection] = useState("asc");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const { register, handleSubmit, reset } = useForm();
+  const { control, handleSubmit, reset } = useForm();
 
   const handleSort = (column) => {
     if (column === sortColumn) {
@@ -55,9 +55,14 @@ const Partners = () => {
   }) : [];
 
   const onSubmit = async (data) => {
-    await addPartner.mutateAsync(data);
-    setIsAddDialogOpen(false);
-    reset();
+    try {
+      await addPartner.mutateAsync(data);
+      setIsAddDialogOpen(false);
+      reset();
+    } catch (error) {
+      console.error("Error adding new partner:", error);
+      // You might want to show an error message to the user here
+    }
   };
 
   const handleDelete = async (id) => {
@@ -84,25 +89,42 @@ const Partners = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <Label htmlFor="name">Partner Name</Label>
-                <Input id="name" {...register("name", { required: true })} placeholder="Enter partner name" />
+                <Controller
+                  name="name"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => <Input id="name" {...field} placeholder="Enter partner name" />}
+                />
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" {...register("email", { required: true })} placeholder="Enter partner email" type="email" />
+                <Controller
+                  name="email"
+                  control={control}
+                  rules={{ required: true, pattern: /^\S+@\S+$/i }}
+                  render={({ field }) => <Input id="email" {...field} placeholder="Enter partner email" type="email" />}
+                />
               </div>
               <div>
                 <Label htmlFor="stage">Current Stage</Label>
-                <Select {...register("stage", { required: true })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Design">Design</SelectItem>
-                    <SelectItem value="Development">Development</SelectItem>
-                    <SelectItem value="Testing">Testing</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="stage"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a stage" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Design">Design</SelectItem>
+                        <SelectItem value="Development">Development</SelectItem>
+                        <SelectItem value="Testing">Testing</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
               <Button type="submit">Add Partner</Button>
             </form>
