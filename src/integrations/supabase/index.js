@@ -40,7 +40,8 @@ export const useDesignPartners = () => useQuery({
 
 export const useDesignPartner = (id) => useQuery({
     queryKey: ['design_partners', id],
-    queryFn: () => fromSupabase(supabase.from('design_partners').select('*').eq('id', id).single())
+    queryFn: () => fromSupabase(supabase.from('design_partners').select('*').eq('id', id).single()),
+    enabled: !!id
 });
 
 export const useAddDesignPartner = () => {

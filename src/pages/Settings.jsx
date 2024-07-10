@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,17 +10,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useDesignPartners, useUpdateDesignPartner } from "@/integrations/supabase";
 
 const Settings = () => {
-  const [stages, setStages] = useState([
-    "Design",
-    "Development",
-    "Testing",
-    "Completed",
-  ]);
+  const { data: partners, isLoading, isError } = useDesignPartners();
+  const updatePartner = useUpdateDesignPartner();
+  const [stages, setStages] = useState([]);
   const [newStage, setNewStage] = useState("");
 
-  const handleAddStage = (e) => {
+  useEffect(() => {
+    if (partners) {
+      const uniqueStages = [...new Set(partners.map(partner => partner.stage))];
+      setStages(uniqueStages);
+    }
+  }, [partners]);
+
+  const handleAddStage = async (e) => {
     e.preventDefault();
     if (newStage.trim() !== "") {
       setStages([...stages, newStage.trim()]);
@@ -28,9 +33,17 @@ const Settings = () => {
     }
   };
 
-  const handleRemoveStage = (index) => {
-    setStages(stages.filter((_, i) => i !== index));
+  const handleRemoveStage = async (stageToRemove) => {
+    const partnersInStage = partners.filter(partner => partner.stage === stageToRemove);
+    if (partnersInStage.length > 0) {
+      alert("Cannot remove stage with active partners. Please move or delete partners in this stage first.");
+      return;
+    }
+    setStages(stages.filter(stage => stage !== stageToRemove));
   };
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Error loading settings</div>;
 
   return (
     <div className="p-6">
@@ -66,7 +79,7 @@ const Settings = () => {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleRemoveStage(index)}
+                    onClick={() => handleRemoveStage(stage)}
                   >
                     Remove
                   </Button>

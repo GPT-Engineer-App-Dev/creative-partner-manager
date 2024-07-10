@@ -24,16 +24,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDesignPartners, useAddDesignPartner, useUpdateDesignPartner, useDeleteDesignPartner } from "@/integrations/supabase";
+import { useForm } from "react-hook-form";
 
 const Partners = () => {
-  const [partners, setPartners] = useState([
-    { id: 1, name: "Acme Inc", stage: "Design" },
-    { id: 2, name: "TechCorp", stage: "Development" },
-    { id: 3, name: "InnoSys", stage: "Testing" },
-  ]);
+  const { data: partners, isLoading, isError } = useDesignPartners();
+  const addPartner = useAddDesignPartner();
+  const updatePartner = useUpdateDesignPartner();
+  const deletePartner = useDeleteDesignPartner();
 
   const [sortColumn, setSortColumn] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const { register, handleSubmit, reset } = useForm();
 
   const handleSort = (column) => {
     if (column === sortColumn) {
@@ -44,17 +48,32 @@ const Partners = () => {
     }
   };
 
-  const sortedPartners = [...partners].sort((a, b) => {
+  const sortedPartners = partners ? [...partners].sort((a, b) => {
     if (a[sortColumn] < b[sortColumn]) return sortDirection === "asc" ? -1 : 1;
     if (a[sortColumn] > b[sortColumn]) return sortDirection === "asc" ? 1 : -1;
     return 0;
-  });
+  }) : [];
+
+  const onSubmit = async (data) => {
+    await addPartner.mutateAsync(data);
+    setIsAddDialogOpen(false);
+    reset();
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this partner?")) {
+      await deletePartner.mutateAsync(id);
+    }
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Error loading partners</div>;
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Design Partners</h1>
-        <Dialog>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>Add New Partner</Button>
           </DialogTrigger>
@@ -62,22 +81,26 @@ const Partners = () => {
             <DialogHeader>
               <DialogTitle>Add New Partner</DialogTitle>
             </DialogHeader>
-            <form className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <Label htmlFor="name">Partner Name</Label>
-                <Input id="name" placeholder="Enter partner name" />
+                <Input id="name" {...register("name", { required: true })} placeholder="Enter partner name" />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" {...register("email", { required: true })} placeholder="Enter partner email" type="email" />
               </div>
               <div>
                 <Label htmlFor="stage">Current Stage</Label>
-                <Select>
+                <Select {...register("stage", { required: true })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a stage" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="design">Design</SelectItem>
-                    <SelectItem value="development">Development</SelectItem>
-                    <SelectItem value="testing">Testing</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Development">Development</SelectItem>
+                    <SelectItem value="Testing">Testing</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -92,6 +115,9 @@ const Partners = () => {
             <TableHead onClick={() => handleSort("name")} className="cursor-pointer">
               Name {sortColumn === "name" && (sortDirection === "asc" ? "▲" : "▼")}
             </TableHead>
+            <TableHead onClick={() => handleSort("email")} className="cursor-pointer">
+              Email {sortColumn === "email" && (sortDirection === "asc" ? "▲" : "▼")}
+            </TableHead>
             <TableHead onClick={() => handleSort("stage")} className="cursor-pointer">
               Stage {sortColumn === "stage" && (sortDirection === "asc" ? "▲" : "▼")}
             </TableHead>
@@ -102,10 +128,14 @@ const Partners = () => {
           {sortedPartners.map((partner) => (
             <TableRow key={partner.id}>
               <TableCell>{partner.name}</TableCell>
+              <TableCell>{partner.email}</TableCell>
               <TableCell>{partner.stage}</TableCell>
               <TableCell>
-                <Button variant="outline" size="sm">
-                  View Details
+                <Button variant="outline" size="sm" className="mr-2">
+                  Edit
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(partner.id)}>
+                  Delete
                 </Button>
               </TableCell>
             </TableRow>

@@ -1,11 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDesignPartners } from "@/integrations/supabase";
 
 const Dashboard = () => {
+  const { data: partners, isLoading, isError } = useDesignPartners();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Error loading dashboard data</div>;
+
   const stages = [
-    { name: "Design", count: 5 },
-    { name: "Development", count: 8 },
-    { name: "Testing", count: 3 },
-    { name: "Completed", count: 12 },
+    { name: "Design", count: partners.filter(p => p.stage === "Design").length },
+    { name: "Development", count: partners.filter(p => p.stage === "Development").length },
+    { name: "Testing", count: partners.filter(p => p.stage === "Testing").length },
+    { name: "Completed", count: partners.filter(p => p.stage === "Completed").length },
   ];
 
   return (
